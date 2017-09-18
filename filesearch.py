@@ -12,7 +12,7 @@ def gendict(dir): #generates dictionary of all files in dir and under, key=filet
     d = {'NoType':[]}
     for tup in wlst:
         os.chdir(tup[0])
-        for i in tup[2]:
+        for i in tup[2]: #insert file abspaths into entries by filetype; create new filetype key if doesn't already exist
             ftype = re.search(r'\.[^\.]+$',i).group(0) if re.search(r'\.[^\.]+$',i) else None
             if not ftype:
                 d['NoType'].append(os.path.abspath(i))
@@ -22,23 +22,40 @@ def gendict(dir): #generates dictionary of all files in dir and under, key=filet
                 d[ftype].append(os.path.abspath(i))
     return d
 
-def findtwins():
-    exitype = not not re.match(r'(\w*\n$)',ftype)
-    lst = gendict('/Users/michaeltang')
-    os.chdir('/')
-    for _ in range(len(lst)):
-        x = lst.pop()
-        #print(lst)
-        if exitype:
-            for item in lst:
-                if filecmp.cmp(x,item) and x!=item and not (os.path.isdir(x) or os.path.isdir(item)):
-                    print('----\n{}\nmatches\n{}\n----'.format(x, item))
+def hashdict(d): #delete one-value type entries and turn the other entries in to hash tables by filesize, created by mod 100 (simple)
+    for key in d.keys():
+        if len(d[key]) == 1:
+            d[key] = {0:[]}
         else:
-            for item in lst:
-                if re.match(r'(.*'+ftype+')',item):
-                    if filecmp.cmp(x,item) and x!=item and not (os.path.isdir(x) or os.path.isdir(item)):
-                        print('----\n{}\nmatches\n{}\n----'.format(x, item))
+            htb = {x:[] for x in range(100)}
+            for val in d[key]:
+                try:
+                    htb[os.stat(val).st_size%100].append(val)
+                except FileNotFoundError:
+                    pass
+            d[key] = htb
+    return d
+
+def findtwins(tspec):
+    d = hashdict(gendict('/Users/michaeltang'))
+    if tspec in d.keys():
+        for lst in d[tspec].values():
+            if len(lst) > 1:
+                for _ in range(len(lst)):
+                    x = lst.pop()
+                    for item in lst:
+                        if filecmp.cmp(x,item):
+                            print('----\n{}\nmatches\n{}\n----'.format(x, item))
+    else:
+        for val in d.values(): #accessing hashtables
+            for lst in val.values():
+                if len(lst) > 1:
+                    for _ in range(len(lst)):
+                        x = lst.pop()
+                        for item in lst:
+                            if filecmp.cmp(x,item):
+                                print('----\n{}\nmatches\n{}\n----'.format(x, item))
 
 if __name__ == "__main__":
-    findtwins()
+    findtwins(input('Enter specific type (.format) if needed or just press ENTER to scan all:').strip())
 
